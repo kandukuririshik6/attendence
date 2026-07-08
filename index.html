@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendly – Employee Attendance</title>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+
+    <!-- Chart.js for reports -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+
+    <style>
+        /* ---- CSS Reset & Variables ---- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --primary-light: #818cf8;
+            --primary-bg: #eef2ff;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --radius: 12px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.12);
+            --transition: 0.25s ease;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        /* ---- App Container ---- */
+        #app {
+            width: 100%;
+            max-width: 480px;
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+            min-height: 600px;
+            max-height: 96vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* ---- Screens ---- */
+        .screen {
+            display: none;
+            flex-direction: column;
+            padding: 24px 20px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .screen.active {
+            display: flex;
+        }
+        /* ---- Scrollbar ---- */
+        .screen::-webkit-scrollbar {
+            width: 4px;
+        }
+        .screen::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .screen::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: 8px;
+        }
+        /* ---- Typography ---- */
+        .app-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+        .app-subtitle {
+            font-size: 14px;
+            color: var(--gray-500);
+            margin-bottom: 24px;
+        }
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+            display: block;
+        }
+        /* ---- Form Elements ---- */
+        input,
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: 10px;
+            font-size: 15px;
+            transition: var(--transition);
+            background: #fff;
+            color: var(--gray-800);
+            font-family: inherit;
+        }
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        input::placeholder {
+            color: var(--gray-400);
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group .label {
+            margin-bottom: 4px;
+        }
+        /* ---- Buttons ---- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            width: 100%;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #16a34a;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--gray-600);
+            border: 1.5px solid var(--gray-200);
+        }
+        .btn-outline:hover {
+            background: var(--gray-100);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--primary);
+            padding: 8px 12px;
+            width: auto;
+        }
+        .btn-ghost:hover {
+            background: var(--primary-bg);
+        }
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 13px;
+            width: auto;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .btn-group .btn {
+            flex: 1;
+        }
+        /* ---- Cards ---- */
+        .card {
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            border: 1px solid var(--gray-200);
+        }
+        .card-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+        }
+        .card-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        /* ---- Org / PIN screens ---- */
+        .org-display {
+            text-align: center;
+            padding: 20px 0 12px;
+        }
+        .org-display .org-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        .org-display .org-label {
+            font-size: 13px;
+            color: var(--gray-500);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .pin-dots {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 16px 0 20px;
+        }
+        .pin-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--gray-300);
+            background: #fff;
+            transition: var(--transition);
+        }
+        .pin-dot.filled {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        /* ---- Dashboard ---- */
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .dash-user h2 {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        .dash-user .org-name-sm {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+        .dash-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+        .dash-status.punched-in {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .dash-status.punched-out {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .punch-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0 8px;
+        }
+        .punch-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+        .punch-btn .icon {
+            font-size: 34px;
+            line-height: 1;
+        }
+        .punch-btn.punch-in {
+            background: var(--success);
+            color: #fff;
+        }
+        .punch-btn.punch-in:hover {
+            transform: scale(1.04);
+            box-shadow: 0 8px 40px rgba(34, 197, 94, 0.35);
+        }
+        .punch-btn.punch-out {
+            background: var(--danger);
+            color: #fff;
+        }
+        .punch-btn.punch-out:hover {
+            transform: scale(1.04);
+            box-shadow: 0 8px 40px rgba(239, 68, 68, 0.35);
+        }
+        .punch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .punch-time {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-top: 8px;
+        }
+        /* ---- Selfie preview ---- */
+        .selfie-container {
+            margin: 8px 0 12px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--gray-100);
+            position: relative;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--gray-300);
+        }
+        .selfie-container video,
+        .selfie-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .selfie-container .placeholder {
+            color: var(--gray-400);
+            font-size: 14px;
+            text-align: center;
+            padding: 16px;
+        }
+        .selfie-container .placeholder .icon {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .selfie-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        .selfie-actions .btn {
+            flex: 1;
+        }
+        /* ---- Reason Modal ---- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: var(--radius);
+            max-width: 420px;
+            width: 100%;
+            padding: 28px 24px 24px;
+            box-shadow: var(--shadow-lg);
+            animation: modalIn 0.25s ease;
+        }
+        @keyframes modalIn {
+            from {
+                transform: scale(0.94) translateY(16px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        .modal-box h3 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+        .modal-box .sub {
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .modal-box .btn-group {
+            margin-top: 16px;
+        }
+        .modal-box .btn-group .btn {
+            flex: 1;
+        }
+        /* ---- Report ---- */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .report-header h2 {
+            margin: 0;
+        }
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .month-nav .btn {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 18px;
+            border-radius: 8px;
+        }
+        .month-nav .month-label {
+            font-weight: 600;
+            min-width: 100px;
+            text-align: center;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+        .calendar-grid .day-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-400);
+            text-align: center;
+            padding: 4px 0;
+            text-transform: uppercase;
+        }
+        .calendar-grid .day-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--gray-50);
+            color: var(--gray-600);
+            transition: var(--transition);
+            cursor: default;
+            position: relative;
+        }
+        .calendar-grid .day-cell.empty {
+            background: transparent;
+            color: transparent;
+        }
+        .calendar-grid .day-cell.present {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .calendar-grid .day-cell.absent {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .calendar-grid .day-cell.half-day {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .calendar-grid .day-cell.today {
+            outline: 2px solid var(--primary);
+            outline-offset: -2px;
+        }
+        .calendar-grid .day-cell .dot {
+            position: absolute;
+            bottom: 3px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+        .report-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0 16px;
+        }
+        .report-summary .stat {
+            background: var(--gray-50);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid var(--gray-200);
+        }
+        .report-summary .stat .num {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        .report-summary .stat .lbl {
+            font-size: 11px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .report-detail-list {
+            margin-top: 8px;
+        }
+        .report-detail-list .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 14px;
+        }
+        .report-detail-list .item:last-child {
+            border-bottom: none;
+        }
+        .report-detail-list .item .date {
+            font-weight: 500;
+        }
+        .report-detail-list .item .status {
+            font-weight: 500;
+        }
+        .report-detail-list .item .status.in {
+            color: var(--success);
+        }
+        .report-detail-list .item .status.out {
+            color: var(--danger);
+        }
+        /* ---- Settings ---- */
+        .settings-password {
+            margin-bottom: 16px;
+        }
+        .settings-password input {
+            margin-top: 4px;
+        }
+        .settings-fields {
+            display: none;
+        }
+        .settings-fields.open {
+            display: block;
+        }
+        .settings-fields .input-group {
+            margin-bottom: 12px;
+        }
+        .settings-fields .input-group .hint {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+        /* ---- Toast ---- */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 92%;
+            max-width: 440px;
+            pointer-events: none;
+        }
+        .toast {
+            background: var(--gray-900);
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            animation: toastIn 0.35s ease;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.success {
+            background: #16a34a;
+        }
+        .toast.error {
+            background: #dc2626;
+        }
+        .toast.warning {
+            background: #d97706;
+        }
+        @keyframes toastIn {
+            from {
+                transform: translateY(20px) scale(0.96);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        /* ---- Utilities ---- */
+        .text-center {
+            text-align: center;
+        }
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .mt-12 {
+            margin-top: 12px;
+        }
+        .mt-16 {
+            margin-top: 16px;
+        }
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+        .mb-12 {
+            margin-bottom: 12px;
+        }
+        .gap-8 {
+            gap: 8px;
+        }
+        .flex {
+            display: flex;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .w-full {
+            width: 100%;
+        }
+        .text-sm {
+            font-size: 13px;
+        }
+        .text-muted {
+            color: var(--gray-500);
+        }
+        /* ---- Responsive ---- */
+        @media (max-width: 480px) {
+            #app {
+                max-height: 100vh;
+                border-radius: 0;
+                padding: 0;
+            }
+            .screen {
+                padding: 18px 16px 16px;
+            }
+            .punch-btn {
+                width: 100px;
+                height: 100px;
+                font-size: 14px;
+            }
+            .punch-btn .icon {
+                font-size: 28px;
+            }
+            .report-summary {
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 6px;
+            }
+            .report-summary .stat .num {
+                font-size: 18px;
+            }
+        }
+        /* ---- Loading spinner ---- */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .btn .spinner {
+            width: 18px;
+            height: 18px;
+            border-width: 2px;
+        }
+        /* badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-in {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .badge-out {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== APP ===== -->
+    <div id="app">
+
+        <!-- ===== SCREEN: LOGIN (Org Code) ===== -->
+        <div id="screen-login" class="screen active">
+            <div style="padding-top:12px;">
+                <div class="app-title">📋 Attendly</div>
+                <div class="app-subtitle">Employee Attendance System</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                <div class="input-group">
+                    <label class="label">Organization Code</label>
+                    <input id="login-org-code" type="text" placeholder="e.g. ACME123" autocomplete="off" />
+                </div>
+                <button id="login-continue-btn" class="btn btn-primary">Continue →</button>
+                <button id="login-settings-btn" class="btn btn-ghost btn-sm" style="margin-top:12px;width:auto;align-self:center;">
+                    ⚙️ Settings
+                </button>
+                <div style="margin-top:16px;font-size:13px;color:var(--gray-400);text-align:center;">
+                    Saved org code will be remembered
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SCREEN: PIN ===== -->
+        <div id="screen-pin" class="screen">
+            <button id="pin-back-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 0;margin-bottom:4px;">← Back</button>
+            <div class="org-display">
+                <div class="org-label">Organization</div>
+                <div class="org-name" id="pin-org-name">—</div>
+                <div style="font-size:13px;color:var(--gray-500);margin-top:4px;">Enter your employee PIN</div>
+            </div>
+            <div class="pin-dots" id="pin-dots">
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+            </div>
+            <div class="input-group">
+                <input id="pin-input" type="password" maxlength="4" inputmode="numeric" placeholder="Enter 4-digit PIN" autocomplete="off" />
+            </div>
+            <button id="pin-login-btn" class="btn btn-primary">Unlock</button>
+            <div id="pin-error" style="color:var(--danger);font-size:13px;margin-top:8px;text-align:center;min-height:20px;"></div>
+        </div>
+
+        <!-- ===== SCREEN: DASHBOARD ===== -->
+        <div id="screen-dash" class="screen">
+            <div class="dash-header">
+                <div class="dash-user">
+                    <h2 id="dash-employee-name">—</h2>
+                    <div class="org-name-sm" id="dash-org-name">—</div>
+                </div>
+                <span class="dash-status" id="dash-status-badge">● Off</span>
+            </div>
+
+            <!-- Selfie preview -->
+            <div class="selfie-container" id="selfie-container">
+                <div class="placeholder" id="selfie-placeholder">
+                    <span class="icon">📸</span>
+                    Camera preview will appear here
+                </div>
+                <video id="selfie-video" autoplay playsinline muted style="display:none;"></video>
+                <img id="selfie-captured" style="display:none;" />
+            </div>
+            <div class="selfie-actions">
+                <button id="selfie-toggle-btn" class="btn btn-outline btn-sm">📷 Start Camera</button>
+                <button id="selfie-capture-btn" class="btn btn-primary btn-sm" disabled>Capture</button>
+            </div>
+
+            <!-- Punch area -->
+            <div class="punch-area">
+                <button id="punch-btn" class="punch-btn punch-in">
+                    <span class="icon">⏳</span>
+                    <span id="punch-btn-label">Punch In</span>
+                </button>
+                <div class="punch-time" id="last-punch-time">No punches today</div>
+            </div>
+
+            <!-- Quick actions -->
+            <div class="btn-group" style="margin-top:4px;">
+                <button id="dash-report-btn" class="btn btn-outline btn-sm">📊 Monthly Report</button>
+                <button id="dash-logout-btn" class="btn btn-outline btn-sm">🚪 Logout</button>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:var(--gray-400);text-align:center;" id="dash-employee-id">ID: —</div>
+        </div>
+
+        <!-- ===== SCREEN: REPORT ===== -->
+        <div id="screen-report" class="screen">
+            <div class="flex-between" style="margin-bottom:4px;">
+                <button id="report-back-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 0;">← Dashboard</button>
+                <button id="report-refresh-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 12px;">⟳</button>
+            </div>
+            <div class="report-header">
+                <h2>📊 Monthly Report</h2>
+                <div class="month-nav">
+                    <button id="report-prev-btn" class="btn btn-outline btn-sm">‹</button>
+                    <span class="month-label" id="report-month-label">Jan 2025</span>
+                    <button id="report-next-btn" class="btn btn-outline btn-sm">›</button>
+                </div>
+            </div>
+            <div class="report-summary" id="report-summary">
+                <div class="stat"><div class="num" id="stat-present">0</div><div class="lbl">Present</div></div>
+                <div class="stat"><div class="num" id="stat-absent">0</div><div class="lbl">Absent</div></div>
+                <div class="stat"><div class="num" id="stat-half">0</div><div class="lbl">Half-Day</div></div>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+            <div style="font-size:13px;font-weight:500;margin-top:4px;">Daily Details</div>
+            <div class="report-detail-list" id="report-detail-list">
+                <div style="color:var(--gray-400);text-align:center;padding:12px 0;">Select a day to view details</div>
+            </div>
+        </div>
+
+        <!-- ===== SCREEN: SETTINGS ===== -->
+        <div id="screen-settings" class="screen">
+            <button id="settings-back-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 0;margin-bottom:8px;">← Back</button>
+            <h2>⚙️ Supabase Config</h2>
+            <div class="text-muted text-sm" style="margin-bottom:12px;">Password protected — enter your admin password to view &amp; edit.</div>
+
+            <div class="settings-password">
+                <label class="label">Admin Password</label>
+                <input id="settings-password-input" type="password" placeholder="Enter password" />
+                <button id="settings-unlock-btn" class="btn btn-primary btn-sm" style="margin-top:8px;width:auto;">Unlock</button>
+                <div id="settings-unlock-error" style="color:var(--danger);font-size:13px;margin-top:4px;min-height:18px;"></div>
+            </div>
+
+            <div class="settings-fields" id="settings-fields">
+                <div class="input-group">
+                    <label class="label">Supabase URL</label>
+                    <input id="settings-sb-url" type="url" placeholder="https://your-project.supabase.co" />
+                </div>
+                <div class="input-group">
+                    <label class="label">Anon Key</label>
+                    <input id="settings-sb-anon" type="password" placeholder="anon public key" />
+                    <div class="hint">Used for employer operations with RLS</div>
+                </div>
+                <div class="input-group">
+                    <label class="label">Service Role Key</label>
+                    <input id="settings-sb-service" type="password" placeholder="service_role key (for employee ops)" />
+                    <div class="hint">Bypasses RLS — keep secure</div>
+                </div>
+                <div class="input-group">
+                    <label class="label">Settings Password (change)</label>
+                    <input id="settings-new-password" type="password" placeholder="New admin password" />
+                    <div class="hint">Leave blank to keep current</div>
+                </div>
+                <button id="settings-save-btn" class="btn btn-primary">Save Configuration</button>
+                <div id="settings-save-msg" style="margin-top:8px;font-size:13px;min-height:20px;"></div>
+            </div>
+        </div>
+
+        <!-- ===== MODAL: Punch Out Reason ===== -->
+        <div class="modal-overlay" id="reason-modal">
+            <div class="modal-box">
+                <h3>📝 Punch Out Reason</h3>
+                <div class="sub">Why are you leaving?</div>
+                <div class="input-group">
+                    <label class="label">Reason Type</label>
+                    <select id="reason-type">
+                        <option value="office">🏢 Office / Work</option>
+                        <option value="personal">🧘 Personal</option>
+                    </select>
+                </div>
+                <div class="input-group" id="reason-detail-group">
+                    <label class="label">Specific Reason</label>
+                    <select id="reason-detail">
+                        <option value="client_meeting">Client Meeting</option>
+                        <option value="field_work">Field Work</option>
+                        <option value="site_visit">Site Visit</option>
+                        <option value="training">Training</option>
+                        <option value="errand">Office Errand</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button id="reason-cancel-btn" class="btn btn-outline">Cancel</button>
+                    <button id="reason-confirm-btn" class="btn btn-primary">Confirm Punch Out</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ===== TOAST CONTAINER ===== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ===== JAVASCRIPT ===== -->
+    <script>
+        (function() {
+            'use strict';
+
+            // ---- CONSTANTS ----
+            const STORAGE_ORG_KEY = 'attendly_org_code';
+            const STORAGE_EMP_KEY = 'attendly_employee';
+            const STORAGE_SETTINGS_KEY = 'attendly_settings';
+            const SETTINGS_PASSWORD = 'admin123'; // default, can be changed
+
+            // ---- DOM refs ----
+            const $ = (sel) => document.querySelector(sel);
+            const $$ = (sel) => document.querySelectorAll(sel);
+
+            // Screens
+            const screenLogin = $('#screen-login');
+            const screenPin = $('#screen-pin');
+            const screenDash = $('#screen-dash');
+            const screenReport = $('#screen-report');
+            const screenSettings = $('#screen-settings');
+
+            // Login
+            const loginOrgInput = $('#login-org-code');
+            const loginContinueBtn = $('#login-continue-btn');
+            const loginSettingsBtn = $('#login-settings-btn');
+
+            // PIN
+            const pinOrgName = $('#pin-org-name');
+            const pinInput = $('#pin-input');
+            const pinDots = $$('#pin-dots .pin-dot');
+            const pinLoginBtn = $('#pin-login-btn');
+            const pinBackBtn = $('#pin-back-btn');
+            const pinError = $('#pin-error');
+
+            // Dashboard
+            const dashEmployeeName = $('#dash-employee-name');
+            const dashOrgName = $('#dash-org-name');
+            const dashStatusBadge = $('#dash-status-badge');
+            const dashEmployeeId = $('#dash-employee-id');
+            const punchBtn = $('#punch-btn');
+            const punchBtnLabel = $('#punch-btn-label');
+            const lastPunchTime = $('#last-punch-time');
+            const dashReportBtn = $('#dash-report-btn');
+            const dashLogoutBtn = $('#dash-logout-btn');
+
+            // Selfie
+            const selfieContainer = $('#selfie-container');
+            const selfieVideo = $('#selfie-video');
+            const selfieCaptured = $('#selfie-captured');
+            const selfiePlaceholder = $('#selfie-placeholder');
+            const selfieToggleBtn = $('#selfie-toggle-btn');
+            const selfieCaptureBtn = $('#selfie-capture-btn');
+
+            // Report
+            const reportBackBtn = $('#report-back-btn');
+            const reportRefreshBtn = $('#report-refresh-btn');
+            const reportPrevBtn = $('#report-prev-btn');
+            const reportNextBtn = $('#report-next-btn');
+            const reportMonthLabel = $('#report-month-label');
+            const calendarGrid = $('#calendar-grid');
+            const reportDetailList = $('#report-detail-list');
+            const statPresent = $('#stat-present');
+            const statAbsent = $('#stat-absent');
+            const statHalf = $('#stat-half');
+
+            // Settings
+            const settingsBackBtn = $('#settings-back-btn');
+            const settingsPasswordInput = $('#settings-password-input');
+            const settingsUnlockBtn = $('#settings-unlock-btn');
+            const settingsUnlockError = $('#settings-unlock-error');
+            const settingsFields = $('#settings-fields');
+            const settingsSbUrl = $('#settings-sb-url');
+            const settingsSbAnon = $('#settings-sb-anon');
+            const settingsSbService = $('#settings-sb-service');
+            const settingsNewPassword = $('#settings-new-password');
+            const settingsSaveBtn = $('#settings-save-btn');
+            const settingsSaveMsg = $('#settings-save-msg');
+
+            // Reason modal
+            const reasonModal = $('#reason-modal');
+            const reasonType = $('#reason-type');
+            const reasonDetail = $('#reason-detail');
+            const reasonDetailGroup = $('#reason-detail-group');
+            const reasonCancelBtn = $('#reason-cancel-btn');
+            const reasonConfirmBtn = $('#reason-confirm-btn');
+
+            // Toast
+            const toastContainer = $('#toast-container');
+
+            // ---- STATE ----
+            let supabase = null;
+            let currentOrg = null; // { id, org_code, org_name }
+            let currentEmployee = null; // { id, organization_id, employee_id, name, role }
+            let isPunchedIn = false;
+            let currentPunchId = null; // attendance record id for the current punch-in
+            let reportDate = new Date(); // current month for report
+            let cameraStream = null;
+            let cameraActive = false;
+            let capturedImageData = null; // base64 image data for current punch
+
+            // ---- SETTINGS ----
+            function loadSettings() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_SETTINGS_KEY);
+                    if (raw) {
+                        const s = JSON.parse(raw);
+                        settingsSbUrl.value = s.url || '';
+                        settingsSbAnon.value = s.anonKey || '';
+                        settingsSbService.value = s.serviceKey || '';
+                        return s;
+                    }
+                } catch (_) { /* ignore */ }
+                return null;
+            }
+
+            function saveSettingsToStorage(url, anonKey, serviceKey, password) {
+                const data = { url, anonKey, serviceKey, password: password || SETTINGS_PASSWORD };
+                localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(data));
+                return data;
+            }
+
+            function getSettingsPassword() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_SETTINGS_KEY);
+                    if (raw) {
+                        const s = JSON.parse(raw);
+                        return s.password || SETTINGS_PASSWORD;
+                    }
+                } catch (_) { /* ignore */ }
+                return SETTINGS_PASSWORD;
+            }
+
+            function initSupabase() {
+                const s = loadSettings();
+                if (s && s.url && s.anonKey) {
+                    try {
+                        const sb = window.supabase.createClient(s.url, s.anonKey);
+                        supabase = sb;
+                        return true;
+                    } catch (e) {
+                        console.warn('Supabase init error:', e);
+                        return false;
+                    }
+                }
+                return false;
+            }
+
+            // ---- TOAST ----
+            function showToast(message, type = 'info', duration = 3200) {
+                const el = document.createElement('div');
+                el.className = `toast ${type}`;
+                el.textContent = message;
+                toastContainer.appendChild(el);
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(12px)';
+                    setTimeout(() => el.remove(), 300);
+                }, duration);
+            }
+
+            // ---- SCREEN MGMT ----
+            function showScreen(id) {
+                $$('.screen').forEach(el => el.classList.remove('active'));
+                const target = document.getElementById(id);
+                if (target) target.classList.add('active');
+            }
+
+            // ---- ROUTING ----
+            function goToLogin() {
+                showScreen('screen-login');
+                loginOrgInput.value = localStorage.getItem(STORAGE_ORG_KEY) || '';
+            }
+
+            function goToPin(org) {
+                currentOrg = org;
+                pinOrgName.textContent = org.org_name;
+                pinInput.value = '';
+                pinError.textContent = '';
+                updatePinDots('');
+                showScreen('screen-pin');
+                setTimeout(() => pinInput.focus(), 200);
+            }
+
+            function goToDashboard(emp) {
+                currentEmployee = emp;
+                dashEmployeeName.textContent = emp.name || emp.employee_id;
+                dashOrgName.textContent = currentOrg ? currentOrg.org_name : '—';
+                dashEmployeeId.textContent = `ID: ${emp.employee_id}`;
+                showScreen('screen-dash');
+                // Reset selfie
+                stopCamera();
+                capturedImageData = null;
+                selfieCaptured.style.display = 'none';
+                selfieVideo.style.display = 'none';
+                selfiePlaceholder.style.display = 'block';
+                selfieCaptureBtn.disabled = true;
+                selfieToggleBtn.textContent = '📷 Start Camera';
+                // Check punch status
+                checkPunchStatus();
+                // Load today's data
+                loadTodayStatus();
+            }
+
+            function goToReport() {
+                showScreen('screen-report');
+                renderReport();
+            }
+
+            function goToSettings() {
+                showScreen('screen-settings');
+                settingsFields.classList.remove('open');
+                settingsPasswordInput.value = '';
+                settingsUnlockError.textContent = '';
+                settingsSaveMsg.textContent = '';
+                loadSettingsIntoFields();
+            }
+
+            // ---- PIN DOTS ----
+            function updatePinDots(value) {
+                const len = value.length;
+                pinDots.forEach((dot, i) => {
+                    dot.classList.toggle('filled', i < len);
+                });
+            }
+
+            // ---- ORG CODE AUTO-FILL ----
+            function prepopulateOrgCode() {
+                const stored = localStorage.getItem(STORAGE_ORG_KEY);
+                if (stored) loginOrgInput.value = stored;
+            }
+
+            // ---- LOGIN FLOW ----
+            async function handleOrgContinue() {
+                const code = loginOrgInput.value.trim();
+                if (!code) {
+                    showToast('Please enter an organization code.', 'warning');
+                    return;
+                }
+                if (!supabase) {
+                    showToast('Supabase not configured. Please go to Settings.', 'error');
+                    return;
+                }
+                loginContinueBtn.disabled = true;
+                loginContinueBtn.textContent = 'Searching...';
+
+                try {
+                    const { data, error } = await supabase
+                        .from('organizations')
+                        .select('id, org_code, org_name')
+                        .eq('org_code', code.toUpperCase())
+                        .maybeSingle();
+
+                    if (error) throw error;
+                    if (!data) {
+                        showToast('Organization not found. Check the code.', 'error');
+                        loginContinueBtn.disabled = false;
+                        loginContinueBtn.textContent = 'Continue →';
+                        return;
+                    }
+
+                    localStorage.setItem(STORAGE_ORG_KEY, code.toUpperCase());
+                    goToPin(data);
+
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error looking up organization.', 'error');
+                } finally {
+                    loginContinueBtn.disabled = false;
+                    loginContinueBtn.textContent = 'Continue →';
+                }
+            }
+
+            // ---- PIN LOGIN ----
+            async function handlePinLogin() {
+                const pin = pinInput.value.trim();
+                if (!pin || pin.length < 4) {
+                    pinError.textContent = 'Please enter a 4-digit PIN.';
+                    return;
+                }
+                if (!supabase) {
+                    showToast('Supabase not configured.', 'error');
+                    return;
+                }
+                pinLoginBtn.disabled = true;
+                pinLoginBtn.textContent = 'Verifying...';
+                pinError.textContent = '';
+
+                try {
+                    // Use service role key for employee login if available
+                    const serviceKey = getServiceKey();
+                    let client = supabase;
+                    if (serviceKey) {
+                        const s = loadSettings();
+                        if (s && s.url) {
+                            client = window.supabase.createClient(s.url, serviceKey);
+                        }
+                    }
+
+                    // Simple PIN hashing: we use SHA-256
+                    const pinHash = await sha256(pin);
+
+                    const { data, error } = await client
+                        .from('employees')
+                        .select('id, organization_id, employee_id, name, role, pin_hash')
+                        .eq('organization_id', currentOrg.id)
+                        .eq('employee_id', pin) // employee_id is the PIN in this flow
+                        .maybeSingle();
+
+                    if (error) throw error;
+                    if (!data) {
+                        pinError.textContent = 'Invalid PIN. Please try again.';
+                        pinLoginBtn.disabled = false;
+                        pinLoginBtn.textContent = 'Unlock';
+                        return;
+                    }
+
+                    // In a real app, compare pin_hash. For this demo, we accept the employee_id as the PIN.
+                    // Since employee_id is the PIN, we just check if it matches.
+                    // But we also store pin_hash for future use.
+                    // For now, we treat the employee_id as the PIN.
+                    // Actually, we should compare the hashed PIN with pin_hash.
+                    // But for simplicity in this demo, we'll just check if the employee_id matches the PIN.
+                    // However, the user might have set a different employee_id.
+                    // Let's use the pin_hash comparison.
+
+                    const storedHash = data.pin_hash;
+                    if (storedHash) {
+                        // Compare hashes
+                        if (storedHash !== pinHash) {
+                            pinError.textContent = 'Invalid PIN. Please try again.';
+                            pinLoginBtn.disabled = false;
+                            pinLoginBtn.textContent = 'Unlock';
+                            return;
+                        }
+                    } else {
+                        // If no pin_hash, fallback to employee_id == pin
+                        if (data.employee_id !== pin) {
+                            pinError.textContent = 'Invalid PIN. Please try again.';
+                            pinLoginBtn.disabled = false;
+                            pinLoginBtn.textContent = 'Unlock';
+                            return;
+                        }
+                    }
+
+                    // Success
+                    const emp = {
+                        id: data.id,
+                        organization_id: data.organization_id,
+                        employee_id: data.employee_id,
+                        name: data.name || data.employee_id,
+                        role: data.role || '',
+                    };
+                    // Store in localStorage
+                    localStorage.setItem(STORAGE_EMP_KEY, JSON.stringify(emp));
+                    goToDashboard(emp);
+                    showToast(`Welcome, ${emp.name}!`, 'success');
+
+                } catch (err) {
+                    console.error(err);
+                    pinError.textContent = 'Login error. Please try again.';
+                } finally {
+                    pinLoginBtn.disabled = false;
+                    pinLoginBtn.textContent = 'Unlock';
+                }
+            }
+
+            // ---- SHA-256 helper ----
+            async function sha256(message) {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            // ---- GET SERVICE KEY ----
+            function getServiceKey() {
+                const s = loadSettings();
+                return s ? s.serviceKey : null;
+            }
+
+            // ---- DASHBOARD: check punch status ----
+            async function checkPunchStatus() {
+                if (!supabase || !currentEmployee) return;
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const { data, error } = await supabase
+                        .from('attendance')
+                        .select('id, punch_in_time, punch_out_time')
+                        .eq('employee_id', currentEmployee.id)
+                        .eq('date', today)
+                        .order('punch_in_time', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (error) throw error;
+                    if (data) {
+                        if (data.punch_out_time) {
+                            isPunchedIn = false;
+                            currentPunchId = null;
+                            updatePunchUI(false);
+                        } else {
+                            isPunchedIn = true;
+                            currentPunchId = data.id;
+                            updatePunchUI(true);
+                        }
+                        // Show last punch time
+                        if (data.punch_in_time) {
+                            const t = new Date(data.punch_in_time);
+                            lastPunchTime.textContent = `Last punch in: ${t.toLocaleTimeString()}`;
+                        }
+                    } else {
+                        isPunchedIn = false;
+                        currentPunchId = null;
+                        updatePunchUI(false);
+                        lastPunchTime.textContent = 'No punches today';
+                    }
+                } catch (err) {
+                    console.error('Check punch status error:', err);
+                }
+            }
+
+            function updatePunchUI(punchedIn) {
+                if (punchedIn) {
+                    punchBtn.className = 'punch-btn punch-out';
+                    punchBtnLabel.textContent = 'Punch Out';
+                    dashStatusBadge.textContent = '● Punched In';
+                    dashStatusBadge.className = 'dash-status punched-in';
+                    isPunchedIn = true;
+                } else {
+                    punchBtn.className = 'punch-btn punch-in';
+                    punchBtnLabel.textContent = 'Punch In';
+                    dashStatusBadge.textContent = '● Punched Out';
+                    dashStatusBadge.className = 'dash-status punched-out';
+                    isPunchedIn = false;
+                }
+            }
+
+            // ---- DASHBOARD: load today's status ----
+            async function loadTodayStatus() {
+                // Just a placeholder for additional info
+            }
+
+            // ---- PUNCH IN ----
+            async function handlePunchIn() {
+                if (!supabase || !currentEmployee || !currentOrg) {
+                    showToast('Not logged in properly.', 'error');
+                    return;
+                }
+                if (isPunchedIn) {
+                    // Should be punch out
+                    handlePunchOut();
+                    return;
+                }
+
+                // Need selfie
+                if (!capturedImageData) {
+                    showToast('Please capture a selfie first!', 'warning');
+                    return;
+                }
+
+                punchBtn.disabled = true;
+                punchBtnLabel.textContent = 'Processing...';
+
+                try {
+                    const now = new Date();
+                    const today = now.toISOString().split('T')[0];
+                    const timeStr = now.toISOString();
+
+                    // Upload selfie to Supabase storage
+                    let imageUrl = null;
+                    try {
+                        imageUrl = await uploadSelfie(capturedImageData, 'in');
+                    } catch (uploadErr) {
+                        console.error('Upload error:', uploadErr);
+                        showToast('Failed to upload selfie. Please try again.', 'error');
+                        punchBtn.disabled = false;
+                        punchBtnLabel.textContent = 'Punch In';
+                        return;
+                    }
+
+                    // Insert attendance record
+                    const { data, error } = await supabase
+                        .from('attendance')
+                        .insert({
+                            employee_id: currentEmployee.id,
+                            organization_id: currentOrg.id,
+                            punch_in_time: timeStr,
+                            date: today,
+                            punch_in_image_url: imageUrl,
+                        })
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+
+                    currentPunchId = data.id;
+                    isPunchedIn = true;
+                    updatePunchUI(true);
+                    lastPunchTime.textContent = `Punched in at ${new Date(timeStr).toLocaleTimeString()}`;
+
+                    // Reset selfie
+                    capturedImageData = null;
+                    selfieCaptured.style.display = 'none';
+                    selfiePlaceholder.style.display = 'block';
+                    selfieCaptureBtn.disabled = true;
+                    stopCamera();
+                    selfieToggleBtn.textContent = '📷 Start Camera';
+
+                    showToast('✅ Punched In successfully!', 'success');
+
+                } catch (err) {
+                    console.error('Punch in error:', err);
+                    showToast('Error during punch in: ' + (err.message || 'unknown'), 'error');
+                } finally {
+                    punchBtn.disabled = false;
+                    punchBtnLabel.textContent = isPunchedIn ? 'Punch Out' : 'Punch In';
+                }
+            }
+
+            // ---- PUNCH OUT ----
+            async function handlePunchOut() {
+                if (!supabase || !currentEmployee || !currentPunchId) {
+                    showToast('No active punch session.', 'error');
+                    return;
+                }
+
+                // Show reason modal
+                reasonModal.classList.add('open');
+                reasonType.value = 'office';
+                reasonDetailGroup.style.display = 'block';
+                reasonDetail.value = 'client_meeting';
+            }
+
+            async function confirmPunchOut() {
+                const type = reasonType.value;
+                const detail = reasonDetail.value;
+                let reasonText = type;
+                if (type === 'office') {
+                    const detailLabel = reasonDetail.options[reasonDetail.selectedIndex]?.text || detail;
+                    reasonText = `office: ${detailLabel}`;
+                } else {
+                    reasonText = 'personal';
+                }
+
+                reasonModal.classList.remove('open');
+                punchBtn.disabled = true;
+                punchBtnLabel.textContent = 'Processing...';
+
+                try {
+                    // Need selfie for punch out too
+                    if (!capturedImageData) {
+                        showToast('Please capture a selfie for punch out!', 'warning');
+                        punchBtn.disabled = false;
+                        punchBtnLabel.textContent = 'Punch Out';
+                        return;
+                    }
+
+                    const now = new Date();
+                    const timeStr = now.toISOString();
+
+                    // Upload selfie
+                    let imageUrl = null;
+                    try {
+                        imageUrl = await uploadSelfie(capturedImageData, 'out');
+                    } catch (uploadErr) {
+                        console.error('Upload error:', uploadErr);
+                        showToast('Failed to upload selfie.', 'error');
+                        punchBtn.disabled = false;
+                        punchBtnLabel.textContent = 'Punch Out';
+                        return;
+                    }
+
+                    // Update attendance record
+                    const { error } = await supabase
+                        .from('attendance')
+                        .update({
+                            punch_out_time: timeStr,
+                            punch_out_image_url: imageUrl,
+                            punch_out_reason: type,
+                            punch_out_reason_detail: type === 'office' ? detail : null,
+                        })
+                        .eq('id', currentPunchId);
+
+                    if (error) throw error;
+
+                    isPunchedIn = false;
+                    updatePunchUI(false);
+                    lastPunchTime.textContent = `Punched out at ${new Date(timeStr).toLocaleTimeString()}`;
+
+                    // Reset selfie
+                    capturedImageData = null;
+                    selfieCaptured.style.display = 'none';
+                    selfiePlaceholder.style.display = 'block';
+                    selfieCaptureBtn.disabled = true;
+                    stopCamera();
+                    selfieToggleBtn.textContent = '📷 Start Camera';
+
+                    showToast('✅ Punched Out successfully!', 'success');
+
+                } catch (err) {
+                    console.error('Punch out error:', err);
+                    showToast('Error during punch out: ' + (err.message || 'unknown'), 'error');
+                } finally {
+                    punchBtn.disabled = false;
+                    punchBtnLabel.textContent = 'Punch In';
+                }
+            }
+
+            // ---- UPLOAD SELFIE ----
+            async function uploadSelfie(base64Data, type) {
+                if (!supabase || !currentOrg || !currentEmployee) {
+                    throw new Error('Missing org or employee data');
+                }
+
+                const blob = dataURLtoBlob(base64Data);
+                const fileName = `${currentOrg.org_code}/${currentEmployee.employee_id}/${Date.now()}_${type}.jpg`;
+
+                const { data, error } = await supabase.storage
+                    .from('attendance-photos')
+                    .upload(fileName, blob, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600',
+                    });
+
+                if (error) throw error;
+
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('attendance-photos')
+                    .getPublicUrl(fileName);
+
+                return urlData.publicUrl;
+            }
+
+            function dataURLtoBlob(dataURL) {
+                const parts = dataURL.split(',');
+                const mime = parts[0].match(/:(.*?);/)[1];
+                const b64 = atob(parts[1]);
+                const arr = new Uint8Array(b64.length);
+                for (let i = 0; i < b64.length; i++) {
+                    arr[i] = b64.charCodeAt(i);
+                }
+                return new Blob([arr], { type: mime });
+            }
+
+            // ---- SELFIE ----
+            async function startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                        audio: false,
+                    });
+                    cameraStream = stream;
+                    selfieVideo.srcObject = stream;
+                    selfieVideo.style.display = 'block';
+                    selfiePlaceholder.style.display = 'none';
+                    selfieCaptured.style.display = 'none';
+                    cameraActive = true;
+                    selfieToggleBtn.textContent = '📷 Stop Camera';
+                    selfieCaptureBtn.disabled = false;
+                    capturedImageData = null;
+                } catch (err) {
+                    console.error('Camera error:', err);
+                    showToast('Could not access camera. Please allow permissions.', 'error');
+                }
+            }
+
+            function stopCamera() {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(t => t.stop());
+                    cameraStream = null;
+                }
+                cameraActive = false;
+                selfieVideo.style.display = 'none';
+                selfieVideo.srcObject = null;
+                selfieToggleBtn.textContent = '📷 Start Camera';
+                selfieCaptureBtn.disabled = true;
+                // If we have a captured image, keep it; otherwise show placeholder
+                if (!capturedImageData) {
+                    selfiePlaceholder.style.display = 'block';
+                    selfieCaptured.style.display = 'none';
+                }
+            }
+
+            function captureSelfie() {
+                if (!cameraActive || !cameraStream) {
+                    showToast('Camera not active. Start the camera first.', 'warning');
+                    return;
+                }
+                const video = selfieVideo;
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                capturedImageData = dataUrl;
+                selfieCaptured.src = dataUrl;
+                selfieCaptured.style.display = 'block';
+                selfieVideo.style.display = 'none';
+                selfiePlaceholder.style.display = 'none';
+                showToast('📸 Selfie captured!', 'success', 1500);
+                // Stop camera after capture to save battery
+                stopCamera();
+                selfieToggleBtn.textContent = '📷 Retake';
+                selfieCaptureBtn.disabled = true;
+            }
+
+            function toggleCamera() {
+                if (cameraActive) {
+                    stopCamera();
+                    if (capturedImageData) {
+                        selfieToggleBtn.textContent = '📷 Retake';
+                    } else {
+                        selfieToggleBtn.textContent = '📷 Start Camera';
+                    }
+                } else {
+                    startCamera();
+                }
+            }
+
+            // ---- REPORT ----
+            async function renderReport() {
+                if (!supabase || !currentEmployee) {
+                    showToast('Please log in first.', 'error');
+                    return;
+                }
+
+                const year = reportDate.getFullYear();
+                const month = reportDate.getMonth();
+                const monthStr = String(month + 1).padStart(2, '0');
+                const label = `${monthStr}/${year}`;
+                reportMonthLabel.textContent = `${new Date(year, month).toLocaleString('default', { month: 'long' })} ${year}`;
+
+                try {
+                    const startDate = `${year}-${monthStr}-01`;
+                    const endDate = new Date(year, month + 1, 0);
+                    const endStr = `${year}-${monthStr}-${String(endDate.getDate()).padStart(2, '0')}`;
+
+                    const { data, error } = await supabase
+                        .from('attendance')
+                        .select('*')
+                        .eq('employee_id', currentEmployee.id)
+                        .gte('date', startDate)
+                        .lte('date', endStr)
+                        .order('date', { ascending: true });
+
+                    if (error) throw error;
+
+                    // Build calendar data
+                    const daysInMonth = endDate.getDate();
+                    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+                    const today = new Date();
+
+                    const dayStatus = {};
+                    let present = 0,
+                        absent = 0,
+                        half = 0;
+
+                    data.forEach(rec => {
+                        const d = rec.date;
+                        if (!dayStatus[d]) dayStatus[d] = [];
+                        dayStatus[d].push(rec);
+                    });
+
+                    // Determine status for each day
+                    const statusMap = {};
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const dateStr = `${year}-${monthStr}-${String(d).padStart(2, '0')}`;
+                        const records = dayStatus[dateStr] || [];
+                        if (records.length === 0) {
+                            statusMap[dateStr] = 'absent';
+                            absent++;
+                        } else {
+                            // Check if any record has a punch out
+                            const hasOut = records.some(r => r.punch_out_time);
+                            const hasIn = records.some(r => r.punch_in_time);
+                            if (hasIn && hasOut) {
+                                statusMap[dateStr] = 'present';
+                                present++;
+                            } else if (hasIn && !hasOut) {
+                                statusMap[dateStr] = 'half-day';
+                                half++;
+                            } else {
+                                statusMap[dateStr] = 'absent';
+                                absent++;
+                            }
+                        }
+                    }
+
+                    // Update stats
+                    statPresent.textContent = present;
+                    statAbsent.textContent = absent;
+                    statHalf.textContent = half;
+
+                    // Render calendar
+                    let html = '';
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    dayNames.forEach(d => {
+                        html += `<div class="day-header">${d}</div>`;
+                    });
+
+                    // Empty cells before first day
+                    for (let i = 0; i < firstDay; i++) {
+                        html += `<div class="day-cell empty"></div>`;
+                    }
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const dateStr = `${year}-${monthStr}-${String(d).padStart(2, '0')}`;
+                        const status = statusMap[dateStr] || 'absent';
+                        const isToday = dateStr === today.toISOString().split('T')[0];
+                        let cls = 'day-cell';
+                        if (status === 'present') cls += ' present';
+                        else if (status === 'absent') cls += ' absent';
+                        else if (status === 'half-day') cls += ' half-day';
+                        if (isToday) cls += ' today';
+                        html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
+                    }
+
+                    calendarGrid.innerHTML = html;
+
+                    // Click on day to show details
+                    calendarGrid.querySelectorAll('.day-cell:not(.empty)').forEach(el => {
+                        el.addEventListener('click', function() {
+                            const date = this.dataset.date;
+                            showDayDetails(date, data);
+                        });
+                    });
+
+                    // Show details for today by default
+                    const todayStr = today.toISOString().split('T')[0];
+                    if (statusMap[todayStr]) {
+                        showDayDetails(todayStr, data);
+                    } else {
+                        // Show first day with data
+                        const firstDate = Object.keys(statusMap)[0];
+                        if (firstDate) showDayDetails(firstDate, data);
+                    }
+
+                } catch (err) {
+                    console.error('Report error:', err);
+                    showToast('Error loading report.', 'error');
+                }
+            }
+
+            function showDayDetails(dateStr, allData) {
+                const records = allData.filter(r => r.date === dateStr);
+                const list = reportDetailList;
+                if (records.length === 0) {
+                    list.innerHTML = `<div style="color:var(--gray-400);text-align:center;padding:12px 0;">No attendance on this day</div>`;
+                    return;
+                }
+                let html = '';
+                records.forEach(r => {
+                    const inTime = r.punch_in_time ? new Date(r.punch_in_time).toLocaleTimeString() : '—';
+                    const outTime = r.punch_out_time ? new Date(r.punch_out_time).toLocaleTimeString() : '—';
+                    const reason = r.punch_out_reason || '—';
+                    const detail = r.punch_out_reason_detail || '';
+                    const status = r.punch_out_time ? '✅ Complete' : '⏳ In progress';
+                    html += `
+                        <div class="item">
+                            <div>
+                                <div class="date">${dateStr}</div>
+                                <div style="font-size:12px;color:var(--gray-500);">${inTime} → ${outTime}</div>
+                                ${detail ? `<div style="font-size:12px;color:var(--gray-500);">${reason}: ${detail}</div>` : ''}
+                            </div>
+                            <div class="status ${r.punch_out_time ? 'in' : 'out'}">${status}</div>
+                        </div>
+                    `;
+                });
+                list.innerHTML = html;
+            }
+
+            function changeReportMonth(delta) {
+                reportDate.setMonth(reportDate.getMonth() + delta);
+                renderReport();
+            }
+
+            // ---- SETTINGS ----
+            function loadSettingsIntoFields() {
+                const s = loadSettings();
+                if (s) {
+                    settingsSbUrl.value = s.url || '';
+                    settingsSbAnon.value = s.anonKey || '';
+                    settingsSbService.value = s.serviceKey || '';
+                }
+            }
+
+            function handleSettingsUnlock() {
+                const entered = settingsPasswordInput.value.trim();
+                const current = getSettingsPassword();
+                if (entered === current) {
+                    settingsFields.classList.add('open');
+                    settingsUnlockError.textContent = '';
+                    showToast('🔓 Settings unlocked', 'success', 1500);
+                } else {
+                    settingsUnlockError.textContent = 'Incorrect password.';
+                    settingsFields.classList.remove('open');
+                }
+            }
+
+            function handleSettingsSave() {
+                const url = settingsSbUrl.value.trim();
+                const anon = settingsSbAnon.value.trim();
+                const service = settingsSbService.value.trim();
+                const newPass = settingsNewPassword.value.trim();
+
+                if (!url || !anon || !service) {
+                    settingsSaveMsg.textContent = '⚠️ All fields are required.';
+                    settingsSaveMsg.style.color = 'var(--danger)';
+                    return;
+                }
+
+                try {
+                    // Test Supabase connection
+                    const testClient = window.supabase.createClient(url, anon);
+                    // Just a simple test: ping the org table
+                    testClient.from('organizations').select('count', { count: 'exact', head: true })
+                        .then(({ error }) => {
+                            if (error && error.code !== '42P01') {
+                                // Table might not exist yet, that's fine
+                                console.log('Supabase test:', error);
+                            }
+                        })
+                        .catch(() => { /* ignore */ });
+                } catch (e) {
+                    settingsSaveMsg.textContent = '⚠️ Invalid Supabase configuration.';
+                    settingsSaveMsg.style.color = 'var(--danger)';
+                    return;
+                }
+
+                const settings = saveSettingsToStorage(url, anon, service, newPass || undefined);
+                // Re-init supabase
+                initSupabase();
+                settingsSaveMsg.textContent = '✅ Configuration saved successfully!';
+                settingsSaveMsg.style.color = 'var(--success)';
+                showToast('Settings saved!', 'success');
+                // Clear password field
+                settingsNewPassword.value = '';
+                // Reload org code
+                prepopulateOrgCode();
+            }
+
+            // ---- LOGOUT ----
+            function logout() {
+                localStorage.removeItem(STORAGE_EMP_KEY);
+                currentEmployee = null;
+                currentOrg = null;
+                isPunchedIn = false;
+                currentPunchId = null;
+                stopCamera();
+                capturedImageData = null;
+                goToLogin();
+                showToast('Logged out.', 'info', 1500);
+            }
+
+            // ---- INIT ----
+            function init() {
+                // Load settings
+                const hasSettings = loadSettings();
+                if (hasSettings && hasSettings.url && hasSettings.anonKey) {
+                    initSupabase();
+                } else {
+                    // Show settings hint
+                    setTimeout(() => {
+                        showToast('Please configure Supabase in Settings.', 'warning', 4000);
+                    }, 500);
+                }
+
+                prepopulateOrgCode();
+
+                // Check if employee is already logged in
+                const storedEmp = localStorage.getItem(STORAGE_EMP_KEY);
+                if (storedEmp && supabase) {
+                    try {
+                        const emp = JSON.parse(storedEmp);
+                        // Try to re-login with stored data
+                        // We need the org too
+                        const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
+                        if (orgCode && emp.organization_id) {
+                            // Fetch org name
+                            supabase.from('organizations')
+                                .select('id, org_code, org_name')
+                                .eq('id', emp.organization_id)
+                                .maybeSingle()
+                                .then(({ data }) => {
+                                    if (data) {
+                                        currentOrg = data;
+                                        goToDashboard(emp);
+                                    } else {
+                                        goToLogin();
+                                    }
+                                })
+                                .catch(() => goToLogin());
+                            return;
+                        }
+                    } catch (_) { /* ignore */ }
+                }
+
+                goToLogin();
+
+                // ---- EVENT BINDING ----
+                // Login
+                loginContinueBtn.addEventListener('click', handleOrgContinue);
+                loginOrgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleOrgContinue(); });
+                loginSettingsBtn.addEventListener('click', goToSettings);
+
+                // PIN
+                pinBackBtn.addEventListener('click', goToLogin);
+                pinLoginBtn.addEventListener('click', handlePinLogin);
+                pinInput.addEventListener('input', function() {
+                    const val = this.value.replace(/\D/g, '').slice(0, 4);
+                    this.value = val;
+                    updatePinDots(val);
+                    pinError.textContent = '';
+                    if (val.length === 4) {
+                        handlePinLogin();
+                    }
+                });
+                pinInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') handlePinLogin();
+                });
+
+                // Dashboard
+                dashLogoutBtn.addEventListener('click', logout);
+                punchBtn.addEventListener('click', handlePunchIn);
+                dashReportBtn.addEventListener('click', goToReport);
+
+                // Selfie
+                selfieToggleBtn.addEventListener('click', toggleCamera);
+                selfieCaptureBtn.addEventListener('click', captureSelfie);
+
+                // Report
+                reportBackBtn.addEventListener('click', () => {
+                    goToDashboard(currentEmployee);
+                });
+                reportRefreshBtn.addEventListener('click', renderReport);
+                reportPrevBtn.addEventListener('click', () => changeReportMonth(-1));
+                reportNextBtn.addEventListener('click', () => changeReportMonth(1));
+
+                // Reason modal
+                reasonCancelBtn.addEventListener('click', () => {
+                    reasonModal.classList.remove('open');
+                    punchBtn.disabled = false;
+                    punchBtnLabel.textContent = 'Punch Out';
+                });
+                reasonConfirmBtn.addEventListener('click', confirmPunchOut);
+                reasonType.addEventListener('change', function() {
+                    if (this.value === 'office') {
+                        reasonDetailGroup.style.display = 'block';
+                    } else {
+                        reasonDetailGroup.style.display = 'none';
+                    }
+                });
+
+                // Settings
+                settingsBackBtn.addEventListener('click', () => {
+                    if (currentEmployee && currentOrg) {
+                        goToDashboard(currentEmployee);
+                    } else {
+                        goToLogin();
+                    }
+                });
+                settingsUnlockBtn.addEventListener('click', handleSettingsUnlock);
+                settingsPasswordInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') handleSettingsUnlock();
+                });
+                settingsSaveBtn.addEventListener('click', handleSettingsSave);
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        if (reasonModal.classList.contains('open')) {
+                            reasonModal.classList.remove('open');
+                            punchBtn.disabled = false;
+                            punchBtnLabel.textContent = isPunchedIn ? 'Punch Out' : 'Punch In';
+                        }
+                    }
+                });
+
+                console.log('📋 Attendly initialized.');
+            }
+
+            // ---- START ----
+            document.addEventListener('DOMContentLoaded', init);
+
+            // Handle case where DOM is already loaded
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                init();
+            }
+
+        })();
+    </script>
+
+</body>
+</html>
