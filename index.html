@@ -1901,36 +1901,6 @@
 
                 prepopulateOrgCode();
 
-                // Check if employee is already logged in
-                const storedEmp = localStorage.getItem(STORAGE_EMP_KEY);
-                if (storedEmp && supabase) {
-                    try {
-                        const emp = JSON.parse(storedEmp);
-                        // Try to re-login with stored data
-                        // We need the org too
-                        const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
-                        if (orgCode && emp.organization_id) {
-                            // Fetch org name
-                            supabase.from('organizations')
-                                .select('id, org_code, org_name')
-                                .eq('id', emp.organization_id)
-                                .maybeSingle()
-                                .then(({ data }) => {
-                                    if (data) {
-                                        currentOrg = data;
-                                        goToDashboard(emp);
-                                    } else {
-                                        goToLogin();
-                                    }
-                                })
-                                .catch(() => goToLogin());
-                            return;
-                        }
-                    } catch (_) { /* ignore */ }
-                }
-
-                goToLogin();
-
                 // ---- EVENT BINDING ----
                 // Login
                 loginContinueBtn.addEventListener('click', handleOrgContinue);
@@ -2009,6 +1979,36 @@
                         }
                     }
                 });
+
+                // Check if employee is already logged in
+                const storedEmp = localStorage.getItem(STORAGE_EMP_KEY);
+                if (storedEmp && supabase) {
+                    try {
+                        const emp = JSON.parse(storedEmp);
+                        // Try to re-login with stored data
+                        // We need the org too
+                        const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
+                        if (orgCode && emp.organization_id) {
+                            // Fetch org name
+                            supabase.from('organizations')
+                                .select('id, org_code, org_name')
+                                .eq('id', emp.organization_id)
+                                .maybeSingle()
+                                .then(({ data }) => {
+                                    if (data) {
+                                        currentOrg = data;
+                                        goToDashboard(emp);
+                                    } else {
+                                        goToLogin();
+                                    }
+                                })
+                                .catch(() => goToLogin());
+                            return;
+                        }
+                    } catch (_) { /* ignore */ }
+                }
+
+                goToLogin();
 
                 console.log('📋 Attendly initialized.');
             }
