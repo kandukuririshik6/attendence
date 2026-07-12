@@ -1226,15 +1226,7 @@
                 pinError.textContent = '';
 
                 try {
-                    // Use service role key for employee login if available
-                    const serviceKey = getServiceKey();
                     let client = supabase;
-                    if (serviceKey) {
-                        const s = loadSettings();
-                        if (s && s.url) {
-                            client = window.supabase.createClient(s.url, serviceKey);
-                        }
-                    }
 
                     // Simple PIN hashing: we use SHA-256
                     const pinHash = await sha256(pin);
