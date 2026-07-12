@@ -1074,8 +1074,7 @@
                 const s = loadSettings();
                 if (s && s.url && s.anonKey) {
                     try {
-                        const clientKey = s.serviceKey || s.anonKey;
-                        const sb = window.supabase.createClient(s.url, clientKey);
+                        const sb = window.supabase.createClient(s.url, s.anonKey);
                         supabase = sb;
                         return true;
                     } catch (e) {
