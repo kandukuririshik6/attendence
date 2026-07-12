@@ -1776,7 +1776,14 @@
             }
 
             function showDayDetails(dateStr, allData) {
-                const records = allData.filter(r => r.date === dateStr);
+                const records = allData.filter(r => {
+                    if (!r.date) return false;
+                    const rDateStr =
+                        typeof r.date === 'string'
+                            ? r.date.split('T')[0].trim()
+                            : new Date(r.date).toISOString().split('T')[0];
+                    return rDateStr === dateStr;
+                });
                 const list = reportDetailList;
                 if (records.length === 0) {
                     list.innerHTML = `<div style="color:var(--gray-400);text-align:center;padding:12px 0;">No attendance on this day</div>`;
