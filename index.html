@@ -778,7 +778,7 @@
 
         <!-- ===== SCREEN: PIN ===== -->
         <div id="screen-pin" class="screen">
-            <button id="pin-back-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 0;margin-bottom:4px;">← Back</button>
+            <button id="pin-back-btn" class="btn btn-ghost btn-sm" style="width:auto;padding:4px 0;margin-bottom:4px;">Change Organization</button>
             <div class="org-display">
                 <div class="org-label">Organization</div>
                 <div class="org-name" id="pin-org-name">—</div>
@@ -1915,7 +1915,10 @@
                 loginSettingsBtn.addEventListener('click', goToSettings);
 
                 // PIN
-                pinBackBtn.addEventListener('click', goToLogin);
+                pinBackBtn.addEventListener('click', () => {
+                    localStorage.removeItem(STORAGE_ORG_KEY);
+                    goToLogin();
+                });
                 pinLoginBtn.addEventListener('click', handlePinLogin);
                 pinInput.addEventListener('input', function() {
                     const val = this.value.replace(/\D/g, '').slice(0, 4);
@@ -2015,7 +2018,23 @@
                     } catch (_) { /* ignore */ }
                 }
 
-                goToLogin();
+                const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
+                if (orgCode && supabase) {
+                    supabase.from('organizations')
+                        .select('id, org_code, org_name')
+                        .eq('org_code', orgCode.toUpperCase())
+                        .maybeSingle()
+                        .then(({ data }) => {
+                            if (data) {
+                                goToPin(data);
+                            } else {
+                                goToLogin();
+                            }
+                        })
+                        .catch(() => goToLogin());
+                } else {
+                    goToLogin();
+                }
 
                 console.log('📋 Attendly initialized.');
             }
