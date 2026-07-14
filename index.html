@@ -1398,11 +1398,8 @@
                     try {
                         imageUrl = await uploadSelfie(capturedImageData, 'in');
                     } catch (uploadErr) {
-                        console.error('Upload error:', uploadErr);
-                        showToast('Failed to upload selfie. Please try again.', 'error');
-                        punchBtn.disabled = false;
-                        punchBtnLabel.textContent = 'Punch In';
-                        return;
+                        console.warn('Storage upload failed, falling back to Base64:', uploadErr);
+                        imageUrl = capturedImageData;
                     }
 
                     // Insert attendance record
@@ -1484,11 +1481,8 @@
                     try {
                         imageUrl = await uploadSelfie(capturedImageData, 'out');
                     } catch (uploadErr) {
-                        console.error('Upload error:', uploadErr);
-                        showToast('Failed to upload selfie.', 'error');
-                        punchBtn.disabled = false;
-                        punchBtnLabel.textContent = 'Punch Out';
-                        return;
+                        console.warn('Storage upload failed, falling back to Base64:', uploadErr);
+                        imageUrl = capturedImageData;
                     }
 
                     // Update attendance record
@@ -1522,29 +1516,24 @@
                     throw new Error('Missing org or employee data');
                 }
 
-                try {
-                    const blob = dataURLtoBlob(base64Data);
-                    const fileName = `${currentOrg.org_code}/${currentEmployee.employee_id}/${Date.now()}_${type}.jpg`;
+                const blob = dataURLtoBlob(base64Data);
+                const fileName = `${currentOrg.org_code}/${currentEmployee.employee_id}/${Date.now()}_${type}.jpg`;
 
-                    const { data, error } = await supabase.storage
-                        .from('attendance-photos')
-                        .upload(fileName, blob, {
-                            contentType: 'image/jpeg',
-                            cacheControl: '3600',
-                        });
+                const { data, error } = await supabase.storage
+                    .from('attendance-photos')
+                    .upload(fileName, blob, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600',
+                    });
 
-                    if (error) throw error;
+                if (error) throw error;
 
-                    // Get public URL
-                    const { data: urlData } = supabase.storage
-                        .from('attendance-photos')
-                        .getPublicUrl(fileName);
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('attendance-photos')
+                    .getPublicUrl(fileName);
 
-                    return urlData.publicUrl;
-                } catch (err) {
-                    console.warn('Selfie upload failed, using base64 fallback:', err);
-                    return base64Data;
-                }
+                return urlData.publicUrl;
             }
 
             function dataURLtoBlob(dataURL) {
