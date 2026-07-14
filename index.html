@@ -1425,20 +1425,8 @@
 
                     if (error) throw error;
 
-                    currentPunchId = data.id;
-                    isPunchedIn = true;
-                    updatePunchUI(true);
-                    lastPunchTime.textContent = `Punched in at ${new Date(timeStr).toLocaleTimeString()}`;
-
-                    // Reset selfie
-                    capturedImageData = null;
-                    selfieCaptured.style.display = 'none';
-                    selfiePlaceholder.style.display = 'block';
-                    selfieCaptureBtn.disabled = true;
-                    stopCamera();
-                    selfieToggleBtn.textContent = '📷 Start Camera';
-
                     showToast('✅ Punched In successfully!', 'success');
+                    logoutEmployeeOnly();
 
                 } catch (err) {
                     console.error('Punch in error:', err);
@@ -1515,19 +1503,8 @@
 
                     if (error) throw error;
 
-                    isPunchedIn = false;
-                    updatePunchUI(false);
-                    lastPunchTime.textContent = `Punched out at ${new Date(timeStr).toLocaleTimeString()}`;
-
-                    // Reset selfie
-                    capturedImageData = null;
-                    selfieCaptured.style.display = 'none';
-                    selfiePlaceholder.style.display = 'block';
-                    selfieCaptureBtn.disabled = true;
-                    stopCamera();
-                    selfieToggleBtn.textContent = '📷 Start Camera';
-
                     showToast('✅ Punched Out successfully!', 'success');
+                    logoutEmployeeOnly();
 
                 } catch (err) {
                     console.error('Punch out error:', err);
@@ -1891,6 +1868,20 @@
                 capturedImageData = null;
                 goToLogin();
                 showToast('Logged out.', 'info', 1500);
+            }
+
+            function logoutEmployeeOnly() {
+                localStorage.removeItem(STORAGE_EMP_KEY);
+                currentEmployee = null;
+                isPunchedIn = false;
+                currentPunchId = null;
+                stopCamera();
+                capturedImageData = null;
+                if (currentOrg) {
+                    goToPin(currentOrg);
+                } else {
+                    goToLogin();
+                }
             }
 
             // ---- INIT ----
