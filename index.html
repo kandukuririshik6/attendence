@@ -1174,7 +1174,8 @@
                 loginContinueBtn.textContent = 'Searching...';
 
                 try {
-                    const { data, error } = await supabase
+                    const client = getServiceClient();
+                    const { data, error } = await client
                         .from('organizations')
                         .select('id, org_code, org_name')
                         .eq('org_code', code.toUpperCase())
@@ -1298,6 +1299,14 @@
             function getServiceKey() {
                 const s = loadSettings();
                 return s ? s.serviceKey : null;
+            }
+
+            function getServiceClient() {
+                const s = loadSettings();
+                if (s && s.url && s.serviceKey) {
+                    return window.supabase.createClient(s.url, s.serviceKey);
+                }
+                return supabase;
             }
 
             // ---- DASHBOARD: check punch status ----
@@ -1950,7 +1959,7 @@
                         const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
                         if (orgCode && emp.organization_id) {
                             // Fetch org name
-                            supabase.from('organizations')
+                            getServiceClient().from('organizations')
                                 .select('id, org_code, org_name')
                                 .eq('id', emp.organization_id)
                                 .maybeSingle()
@@ -1970,7 +1979,7 @@
 
                 const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
                 if (orgCode && supabase) {
-                    supabase.from('organizations')
+                    getServiceClient().from('organizations')
                         .select('id, org_code, org_name')
                         .eq('org_code', orgCode.toUpperCase())
                         .maybeSingle()
