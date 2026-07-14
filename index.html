@@ -816,10 +816,7 @@
                 <video id="selfie-video" autoplay playsinline muted style="display:none;"></video>
                 <img id="selfie-captured" style="display:none;" />
             </div>
-            <div class="selfie-actions">
-                <button id="selfie-toggle-btn" class="btn btn-outline btn-sm">📷 Start Camera</button>
-                <button id="selfie-capture-btn" class="btn btn-primary btn-sm" disabled>Capture</button>
-            </div>
+
 
             <!-- Punch area -->
             <div class="punch-area">
@@ -988,8 +985,6 @@
             const selfieVideo = $('#selfie-video');
             const selfieCaptured = $('#selfie-captured');
             const selfiePlaceholder = $('#selfie-placeholder');
-            const selfieToggleBtn = $('#selfie-toggle-btn');
-            const selfieCaptureBtn = $('#selfie-capture-btn');
 
             // Report
             const reportBackBtn = $('#report-back-btn');
@@ -1127,14 +1122,9 @@
                 dashOrgName.textContent = currentOrg ? currentOrg.org_name : '—';
                 dashEmployeeId.textContent = `ID: ${emp.employee_id}`;
                 showScreen('screen-dash');
-                // Reset selfie
-                stopCamera();
+                // Start camera automatically
                 capturedImageData = null;
-                selfieCaptured.style.display = 'none';
-                selfieVideo.style.display = 'none';
-                selfiePlaceholder.style.display = 'block';
-                selfieCaptureBtn.disabled = true;
-                selfieToggleBtn.textContent = '📷 Start Camera';
+                startCamera();
                 // Check punch status
                 checkPunchStatus();
                 // Load today's data
@@ -1384,11 +1374,18 @@
                     return;
                 }
 
-                // Need selfie
-                if (!capturedImageData) {
-                    showToast('Please capture a selfie first!', 'warning');
+                // Automatically capture current webcam frame
+                if (!cameraActive || !cameraStream) {
+                    showToast('Could not access camera. Please allow permissions.', 'error');
                     return;
                 }
+                const video = selfieVideo;
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                capturedImageData = canvas.toDataURL('image/jpeg', 0.92);
 
                 punchBtn.disabled = true;
                 punchBtnLabel.textContent = 'Processing...';
@@ -1452,6 +1449,19 @@
             }
 
             async function confirmPunchOut() {
+                // Automatically capture current webcam frame
+                if (!cameraActive || !cameraStream) {
+                    showToast('Could not access camera. Please allow permissions.', 'error');
+                    return;
+                }
+                const video = selfieVideo;
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                capturedImageData = canvas.toDataURL('image/jpeg', 0.92);
+
                 const type = reasonType.value;
                 const detail = reasonDetail.value;
                 let reasonText = type;
@@ -1467,13 +1477,6 @@
                 punchBtnLabel.textContent = 'Processing...';
 
                 try {
-                    // Need selfie for punch out too
-                    if (!capturedImageData) {
-                        showToast('Please capture a selfie for punch out!', 'warning');
-                        punchBtn.disabled = false;
-                        punchBtnLabel.textContent = 'Punch Out';
-                        return;
-                    }
 
                     const now = new Date();
                     const timeStr = now.toISOString();
@@ -1565,8 +1568,6 @@
                     selfiePlaceholder.style.display = 'none';
                     selfieCaptured.style.display = 'none';
                     cameraActive = true;
-                    selfieToggleBtn.textContent = '📷 Stop Camera';
-                    selfieCaptureBtn.disabled = false;
                     capturedImageData = null;
                 } catch (err) {
                     console.error('Camera error:', err);
@@ -1582,49 +1583,9 @@
                 cameraActive = false;
                 selfieVideo.style.display = 'none';
                 selfieVideo.srcObject = null;
-                selfieToggleBtn.textContent = '📷 Start Camera';
-                selfieCaptureBtn.disabled = true;
-                // If we have a captured image, keep it; otherwise show placeholder
                 if (!capturedImageData) {
                     selfiePlaceholder.style.display = 'block';
                     selfieCaptured.style.display = 'none';
-                }
-            }
-
-            function captureSelfie() {
-                if (!cameraActive || !cameraStream) {
-                    showToast('Camera not active. Start the camera first.', 'warning');
-                    return;
-                }
-                const video = selfieVideo;
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                capturedImageData = dataUrl;
-                selfieCaptured.src = dataUrl;
-                selfieCaptured.style.display = 'block';
-                selfieVideo.style.display = 'none';
-                selfiePlaceholder.style.display = 'none';
-                showToast('📸 Selfie captured!', 'success', 1500);
-                // Stop camera after capture to save battery
-                stopCamera();
-                selfieToggleBtn.textContent = '📷 Retake';
-                selfieCaptureBtn.disabled = true;
-            }
-
-            function toggleCamera() {
-                if (cameraActive) {
-                    stopCamera();
-                    if (capturedImageData) {
-                        selfieToggleBtn.textContent = '📷 Retake';
-                    } else {
-                        selfieToggleBtn.textContent = '📷 Start Camera';
-                    }
-                } else {
-                    startCamera();
                 }
             }
 
@@ -1929,9 +1890,7 @@
                 punchBtn.addEventListener('click', handlePunchIn);
                 dashReportBtn.addEventListener('click', goToReport);
 
-                // Selfie
-                selfieToggleBtn.addEventListener('click', toggleCamera);
-                selfieCaptureBtn.addEventListener('click', captureSelfie);
+
 
                 // Report
                 reportBackBtn.addEventListener('click', () => {
