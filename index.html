@@ -9,6 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
     </script>
 
+    <!-- BcryptJS for hashing -->
+    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js">
+    </script>
+
     <!-- Chart.js for reports -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
@@ -939,6 +943,9 @@
         (function() {
             'use strict';
 
+            // Global bcrypt reference mapping for BcryptJS loaded via UMD CDN
+            const bcrypt = window.bcrypt || (window.dcodeIO && window.dcodeIO.bcrypt);
+
             // ---- CONSTANTS ----
             const STORAGE_ORG_KEY = 'attendly_org_code';
             const STORAGE_EMP_KEY = 'attendly_employee';
@@ -1174,8 +1181,7 @@
                 loginContinueBtn.textContent = 'Searching...';
 
                 try {
-                    const client = getServiceClient();
-                    const { data, error } = await client
+                    const { data, error } = await supabase
                         .from('organizations')
                         .select('id, org_code, org_name')
                         .eq('org_code', code.toUpperCase())
@@ -1217,61 +1223,50 @@
                 pinError.textContent = '';
 
                 try {
-                    let client = supabase;
-
-                    // Simple PIN hashing: we use SHA-256
-                    const pinHash = await sha256(pin);
-
-                    const { data, error } = await client
+                    // Fetch all employees in the organization to check PIN
+                    const { data: emps, error } = await supabase
                         .from('employees')
                         .select('id, organization_id, employee_id, name, role, pin_hash')
-                        .eq('organization_id', currentOrg.id)
-                        .eq('employee_id', pin) // employee_id is the PIN in this flow
-                        .maybeSingle();
+                        .eq('organization_id', currentOrg.id);
 
                     if (error) throw error;
-                    if (!data) {
+
+                    let matchedEmployee = null;
+                    if (emps && emps.length > 0) {
+                        for (const emp of emps) {
+                            if (emp.pin_hash) {
+                                try {
+                                    // Use bcrypt.compareSync to check the PIN against the bcrypt hash
+                                    if (bcrypt && bcrypt.compareSync(pin, emp.pin_hash)) {
+                                        matchedEmployee = emp;
+                                        break;
+                                    }
+                                } catch (e) {
+                                    console.warn('Bcrypt compare error:', e);
+                                }
+                            }
+                            // Fallback to employee_id == pin for backwards compatibility
+                            if (emp.employee_id === pin) {
+                                matchedEmployee = emp;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!matchedEmployee) {
                         pinError.textContent = 'Invalid PIN. Please try again.';
                         pinLoginBtn.disabled = false;
                         pinLoginBtn.textContent = 'Unlock';
                         return;
                     }
 
-                    // In a real app, compare pin_hash. For this demo, we accept the employee_id as the PIN.
-                    // Since employee_id is the PIN, we just check if it matches.
-                    // But we also store pin_hash for future use.
-                    // For now, we treat the employee_id as the PIN.
-                    // Actually, we should compare the hashed PIN with pin_hash.
-                    // But for simplicity in this demo, we'll just check if the employee_id matches the PIN.
-                    // However, the user might have set a different employee_id.
-                    // Let's use the pin_hash comparison.
-
-                    const storedHash = data.pin_hash;
-                    if (storedHash) {
-                        // Compare hashes
-                        if (storedHash !== pinHash) {
-                            pinError.textContent = 'Invalid PIN. Please try again.';
-                            pinLoginBtn.disabled = false;
-                            pinLoginBtn.textContent = 'Unlock';
-                            return;
-                        }
-                    } else {
-                        // If no pin_hash, fallback to employee_id == pin
-                        if (data.employee_id !== pin) {
-                            pinError.textContent = 'Invalid PIN. Please try again.';
-                            pinLoginBtn.disabled = false;
-                            pinLoginBtn.textContent = 'Unlock';
-                            return;
-                        }
-                    }
-
                     // Success
                     const emp = {
-                        id: data.id,
-                        organization_id: data.organization_id,
-                        employee_id: data.employee_id,
-                        name: data.name || data.employee_id,
-                        role: data.role || '',
+                        id: matchedEmployee.id,
+                        organization_id: matchedEmployee.organization_id,
+                        employee_id: matchedEmployee.employee_id,
+                        name: matchedEmployee.name || matchedEmployee.employee_id,
+                        role: matchedEmployee.role || '',
                     };
                     // Store in localStorage
                     localStorage.setItem(STORAGE_EMP_KEY, JSON.stringify(emp));
@@ -1301,13 +1296,7 @@
                 return s ? s.serviceKey : null;
             }
 
-            function getServiceClient() {
-                const s = loadSettings();
-                if (s && s.url && s.serviceKey) {
-                    return window.supabase.createClient(s.url, s.serviceKey);
-                }
-                return supabase;
-            }
+
 
             // ---- DASHBOARD: check punch status ----
             async function checkPunchStatus() {
@@ -1533,24 +1522,29 @@
                     throw new Error('Missing org or employee data');
                 }
 
-                const blob = dataURLtoBlob(base64Data);
-                const fileName = `${currentOrg.org_code}/${currentEmployee.employee_id}/${Date.now()}_${type}.jpg`;
+                try {
+                    const blob = dataURLtoBlob(base64Data);
+                    const fileName = `${currentOrg.org_code}/${currentEmployee.employee_id}/${Date.now()}_${type}.jpg`;
 
-                const { data, error } = await supabase.storage
-                    .from('attendance-photos')
-                    .upload(fileName, blob, {
-                        contentType: 'image/jpeg',
-                        cacheControl: '3600',
-                    });
+                    const { data, error } = await supabase.storage
+                        .from('attendance-photos')
+                        .upload(fileName, blob, {
+                            contentType: 'image/jpeg',
+                            cacheControl: '3600',
+                        });
 
-                if (error) throw error;
+                    if (error) throw error;
 
-                // Get public URL
-                const { data: urlData } = supabase.storage
-                    .from('attendance-photos')
-                    .getPublicUrl(fileName);
+                    // Get public URL
+                    const { data: urlData } = supabase.storage
+                        .from('attendance-photos')
+                        .getPublicUrl(fileName);
 
-                return urlData.publicUrl;
+                    return urlData.publicUrl;
+                } catch (err) {
+                    console.warn('Selfie upload failed, using base64 fallback:', err);
+                    return base64Data;
+                }
             }
 
             function dataURLtoBlob(dataURL) {
@@ -1959,7 +1953,7 @@
                         const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
                         if (orgCode && emp.organization_id) {
                             // Fetch org name
-                            getServiceClient().from('organizations')
+                            supabase.from('organizations')
                                 .select('id, org_code, org_name')
                                 .eq('id', emp.organization_id)
                                 .maybeSingle()
@@ -1979,7 +1973,7 @@
 
                 const orgCode = localStorage.getItem(STORAGE_ORG_KEY);
                 if (orgCode && supabase) {
-                    getServiceClient().from('organizations')
+                    supabase.from('organizations')
                         .select('id, org_code, org_name')
                         .eq('org_code', orgCode.toUpperCase())
                         .maybeSingle()
